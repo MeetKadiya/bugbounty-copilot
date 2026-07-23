@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Env / secrets
+.env
+*.env.local
+
+# Data
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/data/*.db-journal
+backend/logs/*.log
+backend/logs/*.log.*
+
+# Secrets / keys (defense-in-depth for a security research repo)
+*.pem
+*.key
+*.p12
+*.crt
+id_rsa
+id_rsa.pub
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,46 @@
+# --- Backend Dockerfile (FULL) ---
+# Includes optional installation of Go-based recon tools (subfinder, httpx,
+# katana, gau, waybackurls, hakrawler, nuclei, assetfinder). If any Go module
+# fails to build (network restrictions, arch mismatch, etc.) the build
+# continues -- the app's pure-Python fallbacks make every tool optional by design.
+#
+# NOTE: This build is slow (10-20+ min) because it compiles 8 Go tools from
+# source with `go install ... @latest` (no version pinning, no shared module
+# cache, nuclei alone is very heavy). For fast local dev, use the default
+# Dockerfile instead, which skips all of this and relies on the Python
+# fallbacks. Only use this file when you actually need the native recon
+# binaries (e.g. building a production/deploy image).
+
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    GOPATH=/root/go \
+    PATH="/root/go/bin:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates git build-essential golang-go \
+    && rm -rf /var/lib/apt/lists/*
+
+# Best-effort install of optional recon tools (never fails the build)
+RUN (go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest || true) \
+ && (go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest || true) \
+ && (go install -v github.com/projectdiscovery/katana/cmd/katana@latest || true) \
+ && (go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest || true) \
+ && (go install -v github.com/tomnomnom/assetfinder@latest || true) \
+ && (go install -v github.com/lc/gau/v2/cmd/gau@latest || true) \
+ && (go install -v github.com/tomnomnom/waybackurls@latest || true) \
+ && (go install -v github.com/hakluke/hakrawler@latest || true)
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/data /app/logs
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
