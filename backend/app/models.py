@@ -70,6 +70,7 @@ class Scan(Base):
     technologies: Mapped[List["Technology"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     findings: Mapped[List["Finding"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     takeover_candidates: Mapped[List["TakeoverCandidate"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
+    endpoint_intelligence: Mapped[List["EndpointIntelligence"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
 
 
 class Subdomain(Base):
@@ -175,3 +176,54 @@ class Finding(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
 
     scan: Mapped[Scan] = relationship(back_populates="findings")
+
+
+class EndpointIntelligence(Base):
+    """Structured, security-relevant intelligence derived from raw discovered
+    endpoints: a normalized path template (e.g. /api/users/{id}), classified
+    parameters, and heuristic OWASP-oriented signals. Everything here is a
+    HEURISTIC for manual researcher review -- never a confirmed vulnerability,
+    and produced entirely from data already collected by the existing
+    (safety-controlled) scanners. See app.intelligence.endpoint_intelligence.
+    """
+
+    __tablename__ = "endpoint_intelligence"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    scan_id: Mapped[str] = mapped_column(ForeignKey("scans.id"))
+
+    hostname: Mapped[str] = mapped_column(String(255), index=True)
+    method: Mapped[str] = mapped_column(String(10), default="GET", index=True)
+    normalized_path: Mapped[str] = mapped_column(String(2048), index=True)
+    url: Mapped[str] = mapped_column(String(2048))
+    example_urls: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    occurrence_count: Mapped[int] = mapped_column(default=1)
+
+    query_parameters: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    path_parameters: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    interesting_parameters: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+
+    api_classification: Mapped[str] = mapped_column(String(64), default="Unknown")
+    endpoint_categories: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+    sensitive_resource_indicators: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+
+    administrative: Mapped[bool] = mapped_column(default=False)
+    auth_related: Mapped[bool] = mapped_column(default=False)
+
+    # Heuristic OWASP-oriented signals -- "potential" only, requires review.
+    potential_bola: Mapped[bool] = mapped_column(default=False, index=True)
+    potential_broken_function_auth: Mapped[bool] = mapped_column(default=False)
+    potential_excessive_data_exposure: Mapped[bool] = mapped_column(default=False)
+    potential_ssrf: Mapped[bool] = mapped_column(default=False, index=True)
+    potential_open_redirect: Mapped[bool] = mapped_column(default=False)
+    potential_mass_assignment: Mapped[bool] = mapped_column(default=False)
+    potential_file_upload: Mapped[bool] = mapped_column(default=False, index=True)
+    potential_debug_internal: Mapped[bool] = mapped_column(default=False, index=True)
+
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.0, index=True)
+    risk_level: Mapped[str] = mapped_column(String(16), default="Low", index=True)
+    reasons: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
+
+    scan: Mapped["Scan"] = relationship(back_populates="endpoint_intelligence")

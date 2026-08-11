@@ -7,6 +7,7 @@ import RiskScoreGauge from '../components/RiskScoreGauge'
 import AssetGraph from '../components/AssetGraph'
 import SubdomainTable from '../components/SubdomainTable'
 import EndpointExplorer from '../components/EndpointExplorer'
+import EndpointIntelligencePanel from '../components/EndpointIntelligencePanel'
 import ParameterExplorer from '../components/ParameterExplorer'
 import SecretsPanel from '../components/SecretsPanel'
 import TechStackPanel from '../components/TechStackPanel'
@@ -92,6 +93,8 @@ export default function Dashboard({ scanId }: { scanId: string }) {
             <EndpointExplorer endpoints={report.endpoints} />
             <ParameterExplorer parameters={report.parameters} />
           </div>
+
+          <EndpointIntelligencePanel scanId={scanId} ready={scan.status === 'completed'} />
 
           <SecretsPanel secrets={report.secrets} />
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -132,6 +132,37 @@ class ScanFullReport(BaseModel):
     takeover_candidates: List[TakeoverCandidateOut]
     risk_score: float
     ai_summary: str
+
+
+class EndpointIntelligenceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    hostname: str
+    method: str
+    normalized_path: str
+    url: str
+    example_urls: Optional[List[str]] = None
+    occurrence_count: int
+    query_parameters: Optional[List[str]] = None
+    path_parameters: Optional[List[Dict[str, Any]]] = None
+    interesting_parameters: Optional[List[Dict[str, Any]]] = None
+    api_classification: str
+    endpoint_categories: Optional[List[str]] = None
+    sensitive_resource_indicators: Optional[List[str]] = None
+    administrative: bool
+    auth_related: bool
+    potential_bola: bool
+    potential_broken_function_auth: bool
+    potential_excessive_data_exposure: bool
+    potential_ssrf: bool
+    potential_open_redirect: bool
+    potential_mass_assignment: bool
+    potential_file_upload: bool
+    potential_debug_internal: bool
+    confidence_score: float
+    risk_level: str
+    reasons: Optional[List[str]] = None
+    created_at: dt.datetime
 
 
 class ScanHistoryItem(BaseModel):

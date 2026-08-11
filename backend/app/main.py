@@ -6,7 +6,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes_export, routes_findings, routes_scans, routes_targets
+from app.api import (
+    routes_endpoint_intelligence, routes_export, routes_findings, routes_scans, routes_targets,
+)
 from app.config import get_settings
 from app.database import init_db
 from app.logging_config import configure_logging, get_logger
@@ -47,6 +49,7 @@ app.add_middleware(
 app.include_router(routes_targets.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_scans.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_findings.router, prefix=settings.API_V1_PREFIX)
+app.include_router(routes_endpoint_intelligence.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_export.router, prefix=settings.API_V1_PREFIX)
 
 

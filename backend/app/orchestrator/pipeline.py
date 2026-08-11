@@ -15,11 +15,12 @@ from app.ai.analyzer import analyze
 from app.core.risk_score import compute_risk_score
 from app.logging_config import get_logger
 from app.models import (
-    Confidence, Endpoint, Finding, Parameter, Scan, ScanStatus, Secret, Subdomain,
-    TakeoverCandidate, Target, Technology,
+    Confidence, Endpoint, EndpointIntelligence, Finding, Parameter, Scan, ScanStatus, Secret,
+    Subdomain, TakeoverCandidate, Target, Technology,
 )
 from app.scanners.api_extractor import APIExtractorScanner
 from app.scanners.dir_bruteforce import DirBruteforceScanner
+from app.scanners.endpoint_intelligence_scanner import EndpointIntelligenceScanner
 from app.scanners.framework_fingerprint import FrameworkFingerprintScanner
 from app.scanners.headers_tech import HeadersTechScanner
 from app.scanners.host_probe import HostProbeScanner
@@ -44,6 +45,7 @@ STAGES: list[tuple[str, object]] = [
     ("Extracting API endpoints", APIExtractorScanner()),
     ("Fingerprinting frameworks", FrameworkFingerprintScanner()),
     ("Extracting parameters", URLParamsScanner()),
+    ("Building endpoint intelligence", EndpointIntelligenceScanner()),
     ("Scanning for secrets", SecretsDetectorScanner()),
     ("Checking for subdomain takeovers", TakeoverDetectorScanner()),
     ("Running AI analysis", None),  # handled specially, see below
@@ -146,6 +148,30 @@ async def _persist_results(
             session.add(Technology(
                 scan_id=scan_id, hostname=t["hostname"], name=t["name"],
                 category=t["category"], evidence=t.get("evidence"),
+            ))
+
+        for ei in context.get("endpoint_intelligence", []):
+            session.add(EndpointIntelligence(
+                scan_id=scan_id, hostname=ei["hostname"], method=ei["method"],
+                normalized_path=ei["normalized_path"], url=ei["url"],
+                example_urls=ei.get("example_urls", []), occurrence_count=ei.get("occurrence_count", 1),
+                query_parameters=ei.get("query_parameters", []), path_parameters=ei.get("path_parameters", []),
+                interesting_parameters=ei.get("interesting_parameters", []),
+                api_classification=ei.get("api_classification", "Unknown"),
+                endpoint_categories=ei.get("endpoint_categories", []),
+                sensitive_resource_indicators=ei.get("sensitive_resource_indicators", []),
+                administrative=ei.get("administrative", False), auth_related=ei.get("auth_related", False),
+                potential_bola=ei.get("potential_bola", False),
+                potential_broken_function_auth=ei.get("potential_broken_function_auth", False),
+                potential_excessive_data_exposure=ei.get("potential_excessive_data_exposure", False),
+                potential_ssrf=ei.get("potential_ssrf", False),
+                potential_open_redirect=ei.get("potential_open_redirect", False),
+                potential_mass_assignment=ei.get("potential_mass_assignment", False),
+                potential_file_upload=ei.get("potential_file_upload", False),
+                potential_debug_internal=ei.get("potential_debug_internal", False),
+                confidence_score=ei.get("confidence_score", 0.0),
+                risk_level=ei.get("risk_level", "Low"),
+                reasons=ei.get("reasons", []),
             ))
 
         for f in context.get("ai_findings", []):

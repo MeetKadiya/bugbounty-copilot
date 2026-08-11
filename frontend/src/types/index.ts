@@ -124,3 +124,46 @@ export interface ScanDiff {
   current_risk_score: number | null
   risk_score_delta: number | null
 }
+
+export interface PathParameter {
+  placeholder: string
+  example_value: string
+  kind: string
+}
+
+export interface InterestingParameter {
+  name: string
+  categories: string[]
+  sensitivity: 'interesting' | 'potentially sensitive' | 'requires review'
+  owasp_hints: string[]
+}
+
+export interface EndpointIntelligence {
+  id: string
+  hostname: string
+  method: string
+  normalized_path: string
+  url: string
+  example_urls: string[] | null
+  occurrence_count: number
+  query_parameters: string[] | null
+  path_parameters: PathParameter[] | null
+  interesting_parameters: InterestingParameter[] | null
+  api_classification: string
+  endpoint_categories: string[] | null
+  sensitive_resource_indicators: string[] | null
+  administrative: boolean
+  auth_related: boolean
+  potential_bola: boolean
+  potential_broken_function_auth: boolean
+  potential_excessive_data_exposure: boolean
+  potential_ssrf: boolean
+  potential_open_redirect: boolean
+  potential_mass_assignment: boolean
+  potential_file_upload: boolean
+  potential_debug_internal: boolean
+  confidence_score: number
+  risk_level: 'High' | 'Medium' | 'Low'
+  reasons: string[] | null
+  created_at: string
+}

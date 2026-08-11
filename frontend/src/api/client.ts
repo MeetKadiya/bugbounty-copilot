@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Scan, ScanDiff, ScanFullReport, ScanHistory, Target } from '../types'
+import type { EndpointIntelligence, Scan, ScanDiff, ScanFullReport, ScanHistory, Target } from '../types'
 
 const API_BASE = '/api/v1'
 
@@ -65,6 +65,23 @@ export async function getScanHistory(targetId: string) {
 export async function getScanDiff(targetId: string, baselineScanId: string, currentScanId: string) {
   const res = await api.get<ScanDiff>(`/targets/${targetId}/diff`, {
     params: { baseline_scan_id: baselineScanId, current_scan_id: currentScanId },
+  })
+  return res.data
+}
+
+export interface EndpointIntelligenceFilters {
+  hostname?: string
+  method?: string
+  category?: string
+  risk?: string
+  min_confidence?: number
+  parameter?: string
+  vulnerability_class?: string
+}
+
+export async function getEndpointIntelligence(scanId: string, filters: EndpointIntelligenceFilters = {}) {
+  const res = await api.get<EndpointIntelligence[]>(`/scans/${scanId}/endpoint-intelligence`, {
+    params: filters,
   })
   return res.data
 }
