@@ -31,6 +31,9 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 
+# Ad-hoc local test output (not part of the project)
+backend/out*.txt
+
 # OS / editor
 .DS_Store
 Thumbs.db
