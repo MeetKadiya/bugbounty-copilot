@@ -1,5 +1,9 @@
 # 🛡️ Bug Bounty Copilot
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://bugbounty-copilot.vercel.app)
+[![API Status](https://img.shields.io/badge/API-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://bugbounty-copilot.onrender.com/docs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](./LICENSE)
+
 An **AI-powered reconnaissance assistant** for authorized security researchers.
 It automates the tedious parts of recon — subdomain enumeration, live-host
 probing, endpoint/parameter/secret discovery, tech fingerprinting — then uses
@@ -11,6 +15,16 @@ human should look next**.
 > *suggestion* for a human researcher to manually verify. Only use this against
 > domains you own or are explicitly authorized to test (bug bounty programs,
 > owned assets, lab environments).
+
+---
+
+## 🌐 Live Deployment
+
+| Service | Platform | Live URL |
+|---|---|---|
+| **Frontend Web App** | Vercel | [https://bugbounty-copilot.vercel.app](https://bugbounty-copilot.vercel.app) |
+| **Backend API (Swagger Docs)** | Render | [https://bugbounty-copilot.onrender.com/docs](https://bugbounty-copilot.onrender.com/docs) |
+| **Backend Health Check** | Render | [https://bugbounty-copilot.onrender.com/health](https://bugbounty-copilot.onrender.com/health) |
 
 ---
 ## ✨ Features
