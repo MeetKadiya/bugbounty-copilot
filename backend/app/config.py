@@ -7,14 +7,46 @@ defaults are intentionally conservative.
 """
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+_CORS_DEFAULTS = ["http://localhost:5173", "http://localhost:3000"]
+
+
+def _parse_str_list(value: Any, default: list) -> list:
+    """
+    Robustly coerce an environment variable to List[str].
+
+    Handles all formats that deployment platforms (Render, Railway, Fly.io)
+    may produce:
+      - Already a list  → returned as-is
+      - Empty / blank   → ``default`` is returned
+      - JSON array str  → parsed with json.loads
+      - Comma-separated → split on commas, values stripped
+    """
+    if isinstance(value, list):
+        return value or default
+    if not isinstance(value, str):
+        return default
+    value = value.strip()
+    if not value:
+        return default
+    # Try JSON first (e.g. '["https://foo.com"]')
+    if value.startswith("["):
+        try:
+            parsed = json.loads(value)
+            return parsed if parsed else default
+        except json.JSONDecodeError:
+            pass
+    # Fall back to comma-separated (e.g. "https://foo.com,https://bar.com")
+    return [item.strip() for item in value.split(",") if item.strip()] or default
 
 
 class Settings(BaseSettings):
@@ -29,7 +61,12 @@ class Settings(BaseSettings):
     # --- Server ---
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: List[str] = _CORS_DEFAULTS
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> Any:
+        return _parse_str_list(v, _CORS_DEFAULTS)
 
     # --- Database ---
     DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR / 'data' / 'bugbounty.db'}"
@@ -43,6 +80,33 @@ class Settings(BaseSettings):
     REQUEST_TIMEOUT_SECONDS: int = 10
     RATE_LIMIT_PER_HOST_RPS: float = 5.0
     RESPECT_ROBOTS_TXT: bool = True
+
+    # --- Scope-Aware Request Firewall ---
+    # Every outbound request the scanners make is checked here first. This
+    # is deny-by-default: anything ambiguous, unresolvable, or not
+    # explicitly matched by scope is blocked rather than allowed.
+    SCOPE_FIREWALL_ENABLED: bool = True
+    ALLOWED_SCHEMES: List[str] = ["http", "https"]
+    ALLOWED_PORTS: List[int] = [80, 443]
+    ALLOW_PRIVATE_NETWORKS: bool = False
+    MAX_REDIRECTS: int = 5
+    # DNS rebinding guard: resolve fresh at request time and re-check the
+    # resolved IP, never trust a hostname-only decision made earlier.
+    SCOPE_FIREWALL_DNS_TIMEOUT_SECONDS: float = 5.0
+
+    @field_validator("ALLOWED_SCHEMES", mode="before")
+    @classmethod
+    def parse_allowed_schemes(cls, v: Any) -> Any:
+        return _parse_str_list(v, ["http", "https"])
+
+    @field_validator("ALLOWED_PORTS", mode="before")
+    @classmethod
+    def parse_allowed_ports(cls, v: Any) -> Any:
+        raw = _parse_str_list(v, ["80", "443"])
+        try:
+            return [int(p) for p in raw]
+        except (ValueError, TypeError):
+            return [80, 443]
 
     # --- Recon tuning ---
     SUBDOMAIN_WORDLIST: str = str(BASE_DIR / "wordlists" / "subdomains.txt")
