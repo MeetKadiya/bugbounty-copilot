@@ -99,8 +99,6 @@ class Scan(Base):
     findings: Mapped[List["Finding"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     takeover_candidates: Mapped[List["TakeoverCandidate"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     endpoint_intelligence: Mapped[List["EndpointIntelligence"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
-    stages: Mapped[List["ReconStage"]] = relationship(back_populates="scan", cascade="all, delete-orphan", order_by="ReconStage.order_index")
-    events: Mapped[List["ReconEvent"]] = relationship(back_populates="scan", cascade="all, delete-orphan", order_by="ReconEvent.created_at")
 
 
 class Subdomain(Base):
