@@ -50,7 +50,15 @@ def _parse_str_list(value: Any, default: list) -> list:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # Treat empty-string env vars as unset so the field default is used.
+        # Without this, platforms like Render that set an env var to "" cause
+        # pydantic-settings to call json.loads("") on List fields → crash.
+        env_ignore_empty=True,
+    )
 
     # --- App ---
     APP_NAME: str = "Bug Bounty Copilot"
