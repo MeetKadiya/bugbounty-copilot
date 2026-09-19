@@ -18,7 +18,7 @@ import socket
 from typing import Any
 
 from app.scanners.base import BaseScanner
-from app.utils.http_client import get_client
+from app.utils.http_client import firewalled_get, get_client
 
 try:
     import dns.resolver  # dnspython, optional
@@ -71,6 +71,7 @@ class TakeoverDetectorScanner(BaseScanner):
 
     async def run(self, target_domain: str, context: dict[str, Any]) -> dict[str, Any]:
         subdomains = context.get("subdomains", [])
+        scope_rules = context.get("scope_rules")
         candidates: list[dict] = []
 
         async with get_client() as client:
@@ -89,7 +90,10 @@ class TakeoverDetectorScanner(BaseScanner):
 
                     if fingerprint:
                         try:
-                            resp = await client.get(f"https://{hostname}/")
+                            resp = await firewalled_get(
+                                client, f"https://{hostname}/",
+                                target_domain=target_domain, scope_rules=scope_rules, source=self.name,
+                            )
                         except Exception:  # noqa: BLE001
                             resp = None
                         if resp is not None and fingerprint.lower() in (resp.text or "").lower():

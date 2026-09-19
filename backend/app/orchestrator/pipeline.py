@@ -72,6 +72,12 @@ async def run_pipeline(scan_id: str, target_domain: str, session_factory) -> Non
             scope_rules = target.scope_rules
         await session.commit()
 
+    # Every scanner stage reads scope_rules from context (rather than
+    # needing a bespoke parameter added to BaseScanner.run everywhere) so
+    # the Scope Firewall always has the program's uploaded exclusions/
+    # includes available, not just the bare target_domain.
+    context["scope_rules"] = scope_rules
+
     try:
         for idx, (stage_label, scanner) in enumerate(STAGES, start=1):
             async with session_factory() as session:

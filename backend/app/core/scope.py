@@ -11,6 +11,7 @@ network request.
 """
 from __future__ import annotations
 
+import fnmatch
 import ipaddress
 import re
 
@@ -97,13 +98,70 @@ def parse_scope_rules(raw_text: str) -> list[str]:
     return rules
 
 
-def _pattern_matches(hostname: str, pattern: str) -> bool:
-    pattern = pattern.strip().lower().rstrip("/")
-    pattern = pattern.removeprefix("http://").removeprefix("https://")
-    if pattern.startswith("*."):
-        root = pattern[2:]
+def split_rule(rule: str) -> tuple[str, str | None]:
+    """Split a scope rule into (host_pattern, path_pattern | None)."""
+    rule = rule.strip().lower()
+    rule = rule.removeprefix("http://").removeprefix("https://")
+    host_part, sep, path_part = rule.partition("/")
+    return host_part, (path_part if sep else None)
+
+
+def _host_matches(hostname: str, host_pattern: str) -> bool:
+    host_pattern = host_pattern.strip().lower().rstrip("/")
+    if host_pattern.startswith("*."):
+        root = host_pattern[2:]
         return hostname == root or hostname.endswith("." + root)
-    return hostname == pattern
+    return hostname == host_pattern
+
+
+def _path_matches(path: str, path_pattern: str) -> bool:
+    path = path.lstrip("/")
+    path_pattern = path_pattern.strip().lstrip("/")
+    if not path_pattern:
+        return True
+    return fnmatch.fnmatch(path, path_pattern)
+
+
+def _pattern_matches(hostname: str, pattern: str, path: str | None = None) -> bool:
+    host_pattern, path_pattern = split_rule(pattern)
+    if not _host_matches(hostname, host_pattern):
+        return False
+    if path_pattern and path is not None:
+        return _path_matches(path, path_pattern)
+    return True
+
+
+def match_scope_rule(
+    hostname: str, path: str, target_domain: str, scope_rules: list[str] | None,
+) -> tuple[bool, str | None]:
+    """Like in_scope_ruleset, but also returns which rule (if any) decided
+    the outcome -- used by the Scope Firewall to report a human-readable
+    'rule' in its ScopeDecision. Exclusions always win over includes.
+    """
+    hostname = hostname.lower().rstrip(".")
+
+    if not scope_rules:
+        root = base_domain(target_domain)
+        allowed = in_scope(hostname, target_domain)
+        return allowed, (f"*.{root}" if allowed else None)
+
+    excludes = [r[1:] for r in scope_rules if r.startswith("!")]
+    includes = [r for r in scope_rules if not r.startswith("!")]
+
+    for pattern in excludes:
+        if _pattern_matches(hostname, pattern, path):
+            return False, f"!{pattern}"
+
+    if not includes:
+        root = base_domain(target_domain)
+        allowed = in_scope(hostname, target_domain)
+        return allowed, (f"*.{root}" if allowed else None)
+
+    for pattern in includes:
+        if _pattern_matches(hostname, pattern, path):
+            return True, pattern
+
+    return False, None
 
 
 def in_scope_ruleset(hostname: str, target_domain: str, scope_rules: list[str] | None) -> bool:
@@ -114,22 +172,9 @@ def in_scope_ruleset(hostname: str, target_domain: str, scope_rules: list[str] |
     exclusion always wins regardless of any matching include. Falls back to
     plain root-domain matching via `in_scope()` when no scope_rules are
     configured for the target, so single-target scans behave exactly as
-    before this feature existed.
+    before this feature existed. Delegates to match_scope_rule() (the same
+    logic used by the Scope Firewall) so there is exactly one implementation
+    of scope-rule matching in the codebase.
     """
-    hostname = hostname.lower().rstrip(".")
-
-    if not scope_rules:
-        return in_scope(hostname, target_domain)
-
-    excludes = [r[1:] for r in scope_rules if r.startswith("!")]
-    includes = [r for r in scope_rules if not r.startswith("!")]
-
-    if any(_pattern_matches(hostname, pattern) for pattern in excludes):
-        return False
-
-    if not includes:
-        # Only exclusion rules were supplied -- anything else within the
-        # base target domain is still in scope.
-        return in_scope(hostname, target_domain)
-
-    return any(_pattern_matches(hostname, pattern) for pattern in includes)
+    allowed, _rule = match_scope_rule(hostname, "", target_domain, scope_rules)
+    return allowed

@@ -19,8 +19,26 @@ def _uuid() -> str:
 class ScanStatus(str, enum.Enum):
     PENDING = "pending"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ReconProfile(str, enum.Enum):
+    QUICK = "quick"
+    STANDARD = "standard"
+    DEEP = "deep"
+    CUSTOM = "custom"
+
+
+class StageStatus(str, enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    BLOCKED = "blocked"
     CANCELLED = "cancelled"
 
 
@@ -62,6 +80,16 @@ class Scan(Base):
     finished_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=dt.datetime.utcnow)
 
+    # --- Intelligent Recon Orchestrator ---
+    profile: Mapped[ReconProfile] = mapped_column(Enum(ReconProfile), default=ReconProfile.STANDARD)
+    # Cooperative pause flag checked by the pipeline loop between stages.
+    pause_requested: Mapped[bool] = mapped_column(default=False)
+    # Snapshot of the in-memory pipeline `context` dict, persisted after every
+    # stage so a scan can resume from the last completed stage after a
+    # backend restart, a pause, or a per-stage retry -- without re-running
+    # everything from scratch.
+    context_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)
+
     target: Mapped[Target] = relationship(back_populates="scans")
     subdomains: Mapped[List["Subdomain"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     endpoints: Mapped[List["Endpoint"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
@@ -71,6 +99,8 @@ class Scan(Base):
     findings: Mapped[List["Finding"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     takeover_candidates: Mapped[List["TakeoverCandidate"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
     endpoint_intelligence: Mapped[List["EndpointIntelligence"]] = relationship(back_populates="scan", cascade="all, delete-orphan")
+    stages: Mapped[List["ReconStage"]] = relationship(back_populates="scan", cascade="all, delete-orphan", order_by="ReconStage.order_index")
+    events: Mapped[List["ReconEvent"]] = relationship(back_populates="scan", cascade="all, delete-orphan", order_by="ReconEvent.created_at")
 
 
 class Subdomain(Base):

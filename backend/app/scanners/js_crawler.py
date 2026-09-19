@@ -18,7 +18,7 @@ import httpx
 from app.config import get_settings
 from app.core.scope import in_scope
 from app.scanners.base import BaseScanner
-from app.utils.http_client import get_client
+from app.utils.http_client import firewalled_get, get_client
 from app.utils.subprocess_utils import run_tool, tool_available
 
 settings = get_settings()
@@ -33,6 +33,7 @@ class JSCrawlerScanner(BaseScanner):
     async def run(self, target_domain: str, context: dict[str, Any]) -> dict[str, Any]:
         alive_hosts = [s["hostname"] for s in context.get("subdomains", []) if s.get("is_alive")]
         alive_hosts = alive_hosts[:10]
+        scope_rules = context.get("scope_rules")
         js_files: set[str] = set()
         raw_urls: set[str] = set()
 
@@ -71,7 +72,10 @@ class JSCrawlerScanner(BaseScanner):
             base_url = f"https://{host}"
             async with sem:
                 try:
-                    resp = await client.get(base_url + "/")
+                    resp = await firewalled_get(
+                        client, base_url + "/",
+                        target_domain=target_domain, scope_rules=scope_rules, source=self.name,
+                    )
                 except Exception:  # noqa: BLE001
                     return None
             return (base_url, resp.text or "") if resp is not None else None
@@ -79,7 +83,14 @@ class JSCrawlerScanner(BaseScanner):
         async def fetch_js(client: httpx.AsyncClient, js_url: str) -> tuple[str, str] | None:
             async with sem:
                 try:
-                    resp = await client.get(js_url)
+                    # js_files can include URLs discovered via external tools
+                    # (katana/gau/waybackurls/hakrawler) that may point at
+                    # cross-origin CDNs/hosts -- always re-check scope here,
+                    # never assume tool output is already in-scope.
+                    resp = await firewalled_get(
+                        client, js_url,
+                        target_domain=target_domain, scope_rules=scope_rules, source=self.name,
+                    )
                 except Exception:  # noqa: BLE001
                     return None
             if resp is not None and resp.status_code == 200:

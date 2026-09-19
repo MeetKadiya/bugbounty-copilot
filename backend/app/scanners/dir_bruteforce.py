@@ -43,6 +43,7 @@ class DirBruteforceScanner(BaseScanner):
         alive_hosts = [s["hostname"] for s in context.get("subdomains", []) if s.get("is_alive")]
         # Cap host fanout for directory brute-force to keep it non-intrusive
         alive_hosts = alive_hosts[:10] or [base_domain(target_domain)]
+        scope_rules = context.get("scope_rules")
 
         wordlist_path = Path(settings.DIRECTORY_WORDLIST)
         paths = DEFAULT_PATHS
@@ -55,7 +56,9 @@ class DirBruteforceScanner(BaseScanner):
             url = f"{base_url}/{path}"
             async with sem:
                 try:
-                    resp = await client.get(url)
+                    resp = await firewalled_get(
+                        client, url, target_domain=target_domain, scope_rules=scope_rules, source=self.name,
+                    )
                 except Exception:  # noqa: BLE001
                     return None
             if resp is not None and resp.status_code in INTERESTING_CODES:

@@ -38,6 +38,28 @@ class ScopeValidationResult(BaseModel):
     in_scope: bool
 
 
+class ScopeFirewallCheckRequest(BaseModel):
+    """Scope Firewall dry-run request -- checks a URL against a target's
+    scope without making any outbound HTTP request (DNS resolution still
+    happens so private-IP/DNS-rebinding protection can be previewed)."""
+    url: str
+    domain: Optional[str] = None
+    target_id: Optional[str] = None
+    resolve_dns: bool = True
+
+
+class ScopeFirewallDecisionOut(BaseModel):
+    allowed: bool
+    reason: str
+    decision_type: str
+    normalized_url: str
+    hostname: str
+    port: Optional[int]
+    scheme: str
+    rule: Optional[str]
+    resolved_ips: List[str]
+
+
 class ScanCreate(BaseModel):
     domain: str
     active_recon: bool = True

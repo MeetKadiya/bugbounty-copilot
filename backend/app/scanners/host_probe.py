@@ -10,7 +10,7 @@ import httpx
 
 from app.config import get_settings
 from app.scanners.base import BaseScanner
-from app.utils.http_client import get_client
+from app.utils.http_client import firewalled_get, get_client
 
 settings = get_settings()
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
@@ -22,6 +22,7 @@ class HostProbeScanner(BaseScanner):
     async def run(self, target_domain: str, context: dict[str, Any]) -> dict[str, Any]:
         subdomains = context.get("subdomains", [])[: settings.MAX_SUBDOMAINS_TO_PROBE]
         hosts = [s["hostname"] for s in subdomains]
+        scope_rules = context.get("scope_rules")
 
         probed: dict[str, dict] = {}
 
@@ -46,7 +47,10 @@ class HostProbeScanner(BaseScanner):
 
                 for scheme in ("https", "http"):
                     try:
-                        resp = await client.get(f"{scheme}://{host}/")
+                        resp = await firewalled_get(
+                            client, f"{scheme}://{host}/",
+                            target_domain=target_domain, scope_rules=scope_rules, source=self.name,
+                        )
                     except Exception:  # noqa: BLE001
                         continue
                     if resp is not None:
