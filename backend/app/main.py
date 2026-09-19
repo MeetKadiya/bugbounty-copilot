@@ -7,9 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
-    routes_endpoint_intelligence, routes_export, routes_findings, routes_scans, routes_targets,
+    routes_endpoint_intelligence, routes_export, routes_findings, routes_scans, routes_scope, routes_targets,
 )
-from app.config import get_settings
+from app.config import get_cors_origins, get_settings
 from app.database import init_db
 from app.logging_config import configure_logging, get_logger
 
@@ -40,7 +40,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +51,7 @@ app.include_router(routes_scans.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_findings.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_endpoint_intelligence.router, prefix=settings.API_V1_PREFIX)
 app.include_router(routes_export.router, prefix=settings.API_V1_PREFIX)
+app.include_router(routes_scope.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")

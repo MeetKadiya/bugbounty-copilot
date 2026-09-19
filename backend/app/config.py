@@ -69,12 +69,11 @@ class Settings(BaseSettings):
     # --- Server ---
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    CORS_ORIGINS: List[str] = _CORS_DEFAULTS
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: Any) -> Any:
-        return _parse_str_list(v, _CORS_DEFAULTS)
+    # Stored as a plain str to avoid pydantic-settings calling json.loads("") on
+    # a List[str] field when the env var is blank (crashes before any validator
+    # or env_ignore_empty flag can intercept it).
+    # main.py calls get_cors_origins() to get the parsed List[str].
+    CORS_ORIGINS: str = '["http://localhost:5173","http://localhost:3000"]'
 
     # --- Database ---
     DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR / 'data' / 'bugbounty.db'}"
@@ -151,3 +150,8 @@ def get_settings() -> Settings:
     Path(settings.LOG_DIR).mkdir(parents=True, exist_ok=True)
     (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
     return settings
+
+
+def get_cors_origins() -> List[str]:
+    """Return CORS_ORIGINS as a parsed list, safe for any input format."""
+    return _parse_str_list(get_settings().CORS_ORIGINS, _CORS_DEFAULTS)
